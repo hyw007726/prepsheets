@@ -107,3 +107,59 @@ export const getProductLinksFromCategories = functions
     }
     await browser.close();
   });
+
+
+
+const array = string.split(',');
+const arrayBatch = array.slice(5400);
+// console.log(arrayTest);
+export const getDataFromProductPages = functions
+  .region('europe-west2')
+  .runWith({
+    // Ensure the function has enough memory and time
+    // to process large files
+    timeoutSeconds: 540,
+    memory: '4GB',
+  })
+  .https.onRequest(async (req, res) => {
+    //initialize Puppeteer
+
+    const browser = await puppeteer.launch();
+    const page = await browser.newPage();
+    page.setDefaultTimeout(540000);
+    page.on('requestfailed', (request) => {
+      console.log(request.url() + '' + request?.failure()?.errorText);
+    });
+   
+    // const resultBrowser=[]
+    for (var link in arrayBatch) {
+      let url =arrayBatch[link];
+      let code = url.substring(url.lastIndexOf('-')+1,url.lastIndexOf('.html'));
+      await page.goto(url);
+      let title = await page.evaluate(
+        (el) => el?.textContent,
+        await page.$('[itemprop="name"]'),
+      );
+      let allergen = await page.evaluate(
+        (el) => el?.textContent,
+        await page.$('[class="product-attribute-allergy"] div'),
+      );
+      const nutritionTable = await page.$$eval('table tr', tds => tds.map(td => td.textContent));
+      // resultBrowser.push({
+      //   title: title,
+      //   code: code,
+      //   allergen: allergen,
+      //   nutrition: nutritionTable,
+      // })
+      
+      await fsPromises.writeFile(__dirname+"/../../result.txt", JSON.stringify({
+        title: title,
+        code: code,
+        allergen: allergen,
+        nutrition: nutritionTable,
+      })+'\n', { flag: "a+" });
+    }
+    // console.log(data);
+    // res.send(resultBrowser);
+    await browser.close();
+  });

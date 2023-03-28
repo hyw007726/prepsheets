@@ -1,0 +1,44 @@
+
+import * as functions from 'firebase-functions';
+import admin from 'firebase-admin';
+import { Ingredient } from './types';
+
+const db = admin.firestore();
+
+
+export const copyIngredientsToManaged = functions
+  .runWith({
+    timeoutSeconds: 540,
+  })
+  .region('europe-west2')
+  .https.onRequest(async (req, res) => {
+    // const originSupplier = 'hJKRoaYlScE3N3OmqroV'; // test supplier
+    // const targetSupplier='MTXnfCCwYxo8rDOx01O3';// test supplier
+    // const originSupplier = 'IDYaXEHRkXKTkS7s9t0P'; // Conaty
+    // const targetSupplier='Jf2HKDQKflLi3BmBAbRX';// Conaty
+    const originSupplier = 'Zs156NFnS8M83iK36lwl'; // La Rousse
+    const targetSupplier='Z40pc2fuYFETibdGZa2c';// La Rousse
+     // const user = '8jEbPI6cMPO1jfD5e6ep'; // test user
+    const user = 'E9Fb36b9HQfM3INY4SjDL7GCARH3'; // Mange Tout
+
+    const managedIngredientsRef= await db.collection('/ingredients');
+    const currentIngredients = await db
+      .collection('/users/'+user+'/ingredients')
+      .where('supplier', '==', originSupplier)
+      .get();
+
+    currentIngredients.docs.forEach(async(doc) => {
+        const ingredient = {
+            ...doc.data(),
+            price:0,
+            supplier:targetSupplier
+          } as Ingredient;
+        try {
+            await managedIngredientsRef.doc(doc.id).set(ingredient);
+        } catch (error) {
+            console.log(error);
+        }
+    });
+
+    res.status(200).send('done');
+  });
